@@ -1,4 +1,5 @@
 import hashlib
+import math
 
 
 
@@ -30,7 +31,16 @@ class TCPHeader():
         #     self.seq_num = 0
         #     self.ack_num = 0
         #     self.checksum = 0
-
+    def bits_to_bytes(bits):
+        # print('bits: {}'.format(bits))
+        # bit_int  = int(bits,2)
+        # byte_num1 = math.ceil(bit_int.bit_length()/8)
+        # byte_num = 32
+        # print('byte_num: {}'.format(byte_num))
+        # return bit_int.to_bytes(byte_num, 'big')
+        byts = ''.join([chr(int(bits[i:i+8],2)) for i in range(0, len(bits), 8)]).encode()
+        # print('bytes: {}'.format(byts))
+        return byts
     def set_SYN(self):
         self.SYN = 1
 
@@ -42,6 +52,9 @@ class TCPHeader():
 
     def set_seq(self, seq):
         self.seq_num = seq
+    
+    def get_seq(self):
+        return self.seq_num
 
     def set_ack(self, ack):
         self.ack_num = ack
@@ -67,8 +80,8 @@ class TCPHeader():
         bits += '{0:01b}'.format(self.ACK)
         bits += '{0:01b}'.format(self.FIN)
         # zero padding so that header size = 256 bits
-        bits += '{0:062b}'.format(0)
-        return bits.encode()
+        bits += '{0:061b}'.format(0)
+        return TCPHeader.bits_to_bytes(bits)
 
     def get_payload(self, msg):
         return msg[256:]

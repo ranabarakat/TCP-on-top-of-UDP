@@ -1,6 +1,5 @@
 import socket
 import random
-import os
 from TCP import *
 
 
@@ -29,14 +28,15 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 
 class ClientConnection():
-    def __init__(self, src, dest) -> None:
-        self.socket = (src, dest)
+    def __init__(self, sock, dest) -> None:
+        self.socket = sock
+        self.dest = dest
         self.connected = False
         self.state = 'CLOSED'
         self.recv_seq_num = 0
         self.packet_to_transmit = 0  # current packet up for transmission
         self.packets = []
-        self.seq_num = random.randint()
+        self.seq_num = random.randint(0,9999)
         self.n = 32  # each packet consists of 32-byte payload + 32-byte header
     # def create_header(self, message):
         # pass
@@ -51,11 +51,16 @@ class ClientConnection():
             header = TCPHeader(seq_num=self.seq_num, ack_num=0,
                                SYN=1, ACK=0, FIN=0)
             # self.seq_num += 1
-            sock.sendto(header.get_header(), (HOST, PORT))
+            # header_tmp = ''.join(format(i, '08b')
+            #              for i in header.get_header())  # convert header to binary
+            # print('sending: {}'.format(header_tmp))
+            self.socket.sendto(header.get_header(), self.dest)
             self.state = 'SYN'
 
         elif self.state == 'SYN':
-            received = str(sock.recv(1024), "utf-8")
+            received = self.socket.recv(1024)
+            received = ''.join(format(i, '08b')
+                         for i in received)  # convert header to binary
             header = TCPHeader()
             header.set_header(received)
             if header.ACK == 1 and header.SYN == 1:
@@ -66,7 +71,7 @@ class ClientConnection():
         elif self.state == 'SYN-ACK':
             header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1,
                                SYN=0, ACK=1, FIN=0)
-            sock.sendto(header.get_header(), (HOST, PORT))
+            self.socket.sendto(header.get_header(), self.dest)
             self.state = 'ACK'
             self.seq_num += 1
             # TODO
@@ -91,14 +96,14 @@ class ClientConnection():
                 seq_num=self.seq_num, ack_num=self.recv_seq_num+self.n, ACK=1)
             packet = header.get_header() + payloads[self.packet_to_transmit]
             self.packets.append(packet)
-            sock.sendto(packet, (HOST, PORT))
+            self.socket.sendto(packet, self.dest)
             # self.seq_num += self.n
             # self.packet_to_transmit += 1
 
     def receive(self):
         # interpret message
         if self.connected:
-            received = str(sock.recv(1024), "utf-8")
+            received = str(self.socket.recv(1024), "utf-8")
             header = TCPHeader()
             header.set_header(received)
             if header.ACK == 1 and header.ack_num == self.seq_num+self.n:
@@ -114,7 +119,7 @@ class ClientConnection():
         if self.state == 'ACK':
             header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+self.n, FIN=1)
             # self.seq_num += 1
-            sock.sendto(header.get_header(), (HOST, PORT))
+            self.socket.sendto(header.get_header(), self.dest)
             self.state = 'FIN'
 
         elif self.state == 'FIN':
@@ -127,6 +132,6 @@ class ClientConnection():
                 self.seq_num += 1
         elif self.state == 'FIN-ACK':
             header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1,ACK=1)
-            sock.sendto(header.get_header(), (HOST, PORT))
+            self.socket.sendto(header.get_header(), self.dest)
             self.state = 'CLOSED'
             self.connected = False
