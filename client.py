@@ -34,7 +34,6 @@ class ClientConnection():
         self.connected = False
         self.state = 'CLOSED'
         self.recv_seq_num = 0
-        self.pid = os.getpid()
         self.packet_to_transmit = 0  # current packet up for transmission
         self.packets = []
         self.seq_num = random.randint()
@@ -50,7 +49,7 @@ class ClientConnection():
         if self.state == 'CLOSED':
             # create a header with SYN flag only
             header = TCPHeader(seq_num=self.seq_num, ack_num=0,
-                               SYN=1, ACK=0, FIN=0, PID=self.pid)
+                               SYN=1, ACK=0, FIN=0)
             # self.seq_num += 1
             sock.sendto(header.get_header(), (HOST, PORT))
             self.state = 'SYN'
@@ -66,7 +65,7 @@ class ClientConnection():
 
         elif self.state == 'SYN-ACK':
             header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1,
-                               SYN=0, ACK=1, FIN=0, PID=self.pid)
+                               SYN=0, ACK=1, FIN=0)
             sock.sendto(header.get_header(), (HOST, PORT))
             self.state = 'ACK'
             self.seq_num += 1
@@ -89,7 +88,7 @@ class ClientConnection():
         payloads = self.parse_msg(message)
         if self.connected:
             header = TCPHeader(
-                seq_num=self.seq_num, ack_num=self.recv_seq_num+self.n, ACK=1, PID=self.pid)
+                seq_num=self.seq_num, ack_num=self.recv_seq_num+self.n, ACK=1)
             packet = header.get_header() + payloads[self.packet_to_transmit]
             self.packets.append(packet)
             sock.sendto(packet, (HOST, PORT))
@@ -113,7 +112,7 @@ class ClientConnection():
         # send ack
         # success
         if self.state == 'ACK':
-            header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+self.n, FIN=1, PID=self.pid)
+            header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+self.n, FIN=1)
             # self.seq_num += 1
             sock.sendto(header.get_header(), (HOST, PORT))
             self.state = 'FIN'
@@ -127,7 +126,7 @@ class ClientConnection():
                 self.recv_seq_num = header.seq_num
                 self.seq_num += 1
         elif self.state == 'FIN-ACK':
-            header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1,ACK=1, PID=self.pid)
+            header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1,ACK=1)
             sock.sendto(header.get_header(), (HOST, PORT))
             self.state = 'CLOSED'
             self.connected = False
