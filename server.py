@@ -1,44 +1,32 @@
 import socketserver
 from TCP import *
+import random
 
 HOST, PORT = "localhost", 9999
 
 
 class MyUDPHandler(socketserver.BaseRequestHandler):
     connections = []
-
-    def split_header_contents(self):
-        # APPROACH 1
-
-        # res = ''.join(format(i, '08b') for i in self.msg) # convert message to binary
-        # header = res[:232] # take first 29 bytes for header
-        # content = self.msg[232:] # rest is message
-        # content = [content[i:i+8] for i in range(0, len(content), 8)] # split message to bytes
-        # self.content = ''.join(chr(int(i,2)) for i in content) # convert message back to string
-
-        # APPROACH 2
-
-        header = self.msg[:29]  # take first 29 bytes for header
-        self.content = self.msg[29:]  # rest is message
-        header = ''.join(format(i, '08b')
-                         for i in header)  # convert header to binary
-
-        self.header = TCPHeader(header)
+    current_connection = None
 
     def setup(self):
-        self.current_connection = ServerConnection(
-            self.request[1], (HOST, PORT))
-        try:
-            idx = MyUDPHandler.connections.index(self.current_connection)
-            self.current_connection = MyUDPHandler[idx]
-        except:
-            print('New connection found')
-            MyUDPHandler.connections.append(self.current_connection)
+        i = 0
+        for conn in MyUDPHandler.connections:
+            if conn.socket == self.request[1]:
+                MyUDPHandler.current_connection = conn
+                i+=1
+        if i == len(MyUDPHandler.connections):
+            serv = ServerConnection(self.request[1],self.client_address)
+            MyUDPHandler.connections.append(serv)
+            MyUDPHandler.current_connection = serv
+
+        
+        
 
     def handle(self):
         self.msg = self.request[0].strip()
-        self.split_header_contents()
-        self.current_connection.handle(self.header)
+        MyUDPHandler.current_connection.receive(self.msg)
+        # self.current_connection.handshake(self.header)
         # self.split_header_contents()
         # CHECK WHICH CONNECTION
         # socket = self.request[1]
@@ -49,31 +37,51 @@ class MyUDPHandler(socketserver.BaseRequestHandler):
 
 
 class ServerConnection():
-    def __init__(self, src, dest) -> None:
-        self.socket = (src, dest)
-        # 0 = not done, 1 = stage one done, 2 = stage 2 done, 3 = 3 way handshake complete
-        self.handshake = 0
-        self.ongoing = False
+    
+    def __init__(self, sock,client) -> None:
+        self.socket = sock
+        self.client_address=client
+        self.connected = False
+        self.state = 'CLOSED'
+        self.recv_seq_num = 0
+        self.packet_to_transmit = 0  # current packet up for transmission
+        self.packets = []
+        self.seq_num = random.randint(0, 9999)
+        self.n = 32  # each packet consists of 32-byte payload + 32-byte header
+        self.payload_bits = None
+        self.header_bits = None
+        self.closing = False
 
-    def __eq__(self, __value: object) -> bool:
-        return isinstance(__value, ServerConnection) and hash(self.socket) == hash(__value.socket)
 
-    def handle(self, header):
-        if self.handshake < 3:
-            if ServerConnection.check_handshake(header) == self.handshake+1:
-                self.handshake += 1
-                return 1  # success
-            else:
-                print('Error in handshake')
-                return -1
+    # def __eq__(self, __value: object) -> bool:
+    #     return isinstance(__value, ServerConnection) and hash(self.socket) == hash(__value.socket)
 
-    def check_handshake(header):
-        if header.SYN and header.ACK:
-            return 2
-        if header.SYN:
-            return 1
-        if header.ACK:
-            return 3
+    # def check_handshake(header):
+    #     if header.SYN and header.ACK:
+    #         return 2
+    #     if header.SYN:
+    #         return 1
+    #     if header.ACK:
+    #         return 3
+        
+    def handshake(self):
+        if self.state == 'CLOSED':
+            # received = self.socket.recv(1024)
+            if self.header.SYN:
+                self.state = 'SYN'
+                
+        elif self.state == 'SYN':
+            header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1,
+                               SYN=1, ACK=1)
+            self.socket.sendto(header.get_header(), self.client_address)
+            self.state = 'SYN-ACK'
+
+        elif self.state == 'SYN-ACK':
+            if self.header.ACK:
+                self.state = 'CONNECTED'
+                self.seq_num += 1
+                self.connected = True
+
 
     def send(self, message):
         # confirm connection
@@ -85,10 +93,43 @@ class ServerConnection():
 
     def receive(self, message):
         # interpret message
-        pass
+        header = message[:32]  # take first 29 bytes for header
+        self.header_bits = ''.join(format(i, '08b') for i in header)  # convert header to binary
+        self.payload_bits = ''.join(format(i, '08b') for i in message[32:])
+        self.header = TCPHeader()
+        self.header.set_header(self.header_bits)
+        self.recv_seq_num = self.header.seq_num
+        # self.n = len(message[32:])
+
+
+        if not self.connected :
+            self.handshake()
+
+        else:
+            if self.header.ACK == 1 and self.header.ack_num == self.seq_num+self.n:
+                self.recv_seq_num = self.header.seq_num
+                self.packet_to_transmit += 1
+                self.seq_num += self.n
+
 
     def close(self):
-        pass
+        # receive fin
+        # send fin ack
+        # receive ack
+        # success
+        if self.state == 'CONNECTED':
+           if self.header.FIN:
+               self.state = 'FIN'
+
+        elif self.state == 'FIN':
+            header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1, ACK=1, FIN=1)
+            self.socket.sendto(header.get_header(), self.client_address)
+            self.state = 'FIN-ACK'
+
+        elif self.state == 'FIN-ACK':
+            if self.header.ACK:
+                self.state = 'CLOSED'
+                self.connected = False
 
 
 
