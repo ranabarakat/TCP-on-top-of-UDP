@@ -47,12 +47,11 @@ class ClientConnection():
         # receive syn ack
         # send ack
         # success
-
         if self.state == 'CLOSED':
             # create a header with SYN flag only
             header = TCPHeader(seq_num=self.seq_num, ack_num=0,
                                SYN=1, ACK=0, FIN=0, PID=self.pid)
-            self.seq_num += 1
+            # self.seq_num += 1
             sock.sendto(header.get_header(), (HOST, PORT))
             self.state = 'SYN'
 
@@ -63,6 +62,7 @@ class ClientConnection():
             if header.ACK == 1 and header.SYN == 1:
                 self.state = 'SYN-ACK'
                 self.recv_seq_num = header.seq_num
+                self.seq_num += 1
 
         elif self.state == 'SYN-ACK':
             header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1,
@@ -76,7 +76,6 @@ class ClientConnection():
 
     def parse_msg(self, message):
         # parse message
-
         payloads = [message[i:i+self.n].encode()
                     for i in range(0, len(message), self.n)]
         return payloads
@@ -113,4 +112,22 @@ class ClientConnection():
         # receive fin ack
         # send ack
         # success
-        pass
+        if self.state == 'ACK':
+            header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+self.n, FIN=1, PID=self.pid)
+            # self.seq_num += 1
+            sock.sendto(header.get_header(), (HOST, PORT))
+            self.state = 'FIN'
+
+        elif self.state == 'FIN':
+            received = str(sock.recv(1024), "utf-8")
+            header = TCPHeader()
+            header.set_header(received)
+            if header.ACK == 1 and header.FIN == 1:
+                self.state = 'FIN-ACK'
+                self.recv_seq_num = header.seq_num
+                self.seq_num += 1
+        elif self.state == 'FIN-ACK':
+            header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1,ACK=1, PID=self.pid)
+            sock.sendto(header.get_header(), (HOST, PORT))
+            self.state = 'CLOSED'
+            self.connected = False
