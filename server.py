@@ -47,8 +47,49 @@ class MyUDPHandler(socketserver.BaseRequestHandler):
         # print(data)
         # socket.sendto(data.upper(), self.client_address)
 
-    def send(self):
+
+class ServerConnection():
+    def __init__(self, src, dest) -> None:
+        self.socket = (src, dest)
+        # 0 = not done, 1 = stage one done, 2 = stage 2 done, 3 = 3 way handshake complete
+        self.handshake = 0
+        self.ongoing = False
+
+    def __eq__(self, __value: object) -> bool:
+        return isinstance(__value, ServerConnection) and hash(self.socket) == hash(__value.socket)
+
+    def handle(self, header):
+        if self.handshake < 3:
+            if ServerConnection.check_handshake(header) == self.handshake+1:
+                self.handshake += 1
+                return 1  # success
+            else:
+                print('Error in handshake')
+                return -1
+
+    def check_handshake(header):
+        if header.SYN and header.ACK:
+            return 2
+        if header.SYN:
+            return 1
+        if header.ACK:
+            return 3
+
+    def send(self, message):
+        # confirm connection
+        # split message into n sized packets
+        # select a rdt scheme to use and implement
+        # create header for each packet
+        # send packets
         pass
+
+    def receive(self, message):
+        # interpret message
+        pass
+
+    def close(self):
+        pass
+
 
 
 if __name__ == "__main__":
