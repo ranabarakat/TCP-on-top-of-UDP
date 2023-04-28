@@ -68,13 +68,10 @@ class ServerConnection():
         if self.state == 'CLOSED':
             # received = self.socket.recv(1024)
             if self.header.SYN:
-                self.state = 'SYN'
-                
-        elif self.state == 'SYN':
-            header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1,
-                               SYN=1, ACK=1)
-            self.socket.sendto(header.get_header(), self.client_address)
-            self.state = 'SYN-ACK'
+                header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1,
+                                SYN=1, ACK=1)
+                self.socket.sendto(header.get_header(), self.client_address)
+                self.state = 'SYN-ACK'
 
         elif self.state == 'SYN-ACK':
             if self.header.ACK:
@@ -101,9 +98,14 @@ class ServerConnection():
         self.recv_seq_num = self.header.seq_num
         # self.n = len(message[32:])
 
+        if self.header.FIN:
+            self.closing = True
 
         if not self.connected :
             self.handshake()
+
+        elif self.closing:
+            self.close()
 
         else:
             if self.header.ACK == 1 and self.header.ack_num == self.seq_num+self.n:
@@ -119,12 +121,9 @@ class ServerConnection():
         # success
         if self.state == 'CONNECTED':
            if self.header.FIN:
-               self.state = 'FIN'
-
-        elif self.state == 'FIN':
-            header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1, ACK=1, FIN=1)
-            self.socket.sendto(header.get_header(), self.client_address)
-            self.state = 'FIN-ACK'
+                header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1, ACK=1, FIN=1)
+                self.socket.sendto(header.get_header(), self.client_address)
+                self.state = 'FIN-ACK'
 
         elif self.state == 'FIN-ACK':
             if self.header.ACK:
