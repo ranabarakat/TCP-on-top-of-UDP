@@ -10,6 +10,7 @@ class Connection():
         self.packets = []
         self.received_msg = []
         self.closing = False
+        self.socket.settimeout(0.1)
         # self.seq_num = random.randint(0,9999)
         # self.seq_num = 5407
         self.seq_num = 0
@@ -30,9 +31,12 @@ class Connection():
         self.socket.sendto(header.get_header(), self.dest)
         self.state = 'SYN'
 
-        received = self.socket.recv(1024)
-        received = ''.join(format(i, '08b')
-                        for i in received)  # convert header to binary
+        try:
+            received = self.socket.recv(1024)
+            received = ''.join(format(i, '08b')
+                            for i in received)  # convert header to binary
+        except:
+            print('timed out')
         header = TCPHeader()
         header.set_header(received)
         if header.ACK == 1 and header.SYN == 1:
