@@ -1,5 +1,5 @@
 import hashlib
-import math
+import struct
 
 
 
@@ -39,10 +39,11 @@ class TCPHeader():
         # print('byte_num: {}'.format(byte_num))
         # return bit_int.to_bytes(byte_num, 'big')
         # print(bits)
-        byts = ''.join([chr(int(bits[i:i+8],2)) for i in range(0, len(bits), 8)])
-        print('byts: {}'.format(len(byts)))
-        byts = byts.encode()
-        print('byts encoded: {}'.format(len(byts)))
+        byts = b''.join([struct.pack('B', int(bits[i:i+8],2)) for i in range(0, len(bits), 8)])
+        # print(byts)
+        # print(byts.strip())
+        byts = byts.strip()
+        # print('byts: {}'.format(len(byts)))
         # print('bytes: {}'.format(byts))
         return byts
     def set_SYN(self):

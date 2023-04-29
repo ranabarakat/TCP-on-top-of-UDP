@@ -21,9 +21,9 @@ class Connection():
 
 
     def bytes_to_bits(bytes):
-        print(len(bytes))
-        print(len(bytes.decode()))
-        bits = ''.join(['{0:08b}'.format(ord(i)) for i in bytes.decode()])
+        # print(len(bytes))
+        # bits = ''.join(['{0:08b}'.format(ord(i)) for i in bytes.decode()])
+        bits = ''.join([format(i, '08b') for i in bytes])
         return bits
     def connect(self):
         # create a header with SYN flag only
