@@ -6,13 +6,14 @@ class Connection():
         self.dest = dest
         self.connected = False
         self.state = 'CLOSED'
-        self.recv_seq_num = 0
         self.packet_to_transmit = 0  # current packet up for transmission
         self.packets = []
         self.received_msg = []
         self.closing = False
         # self.seq_num = random.randint(0,9999)
-        self.seq_num = 5407
+        # self.seq_num = 5407
+        self.seq_num = 0
+        self.ack_num = 1
         self.n = 32  # each packet consists of 32-byte payload + 32-byte header
     # def create_header(self, message):
         # pass
@@ -20,7 +21,8 @@ class Connection():
 
     def connect(self):
         # create a header with SYN flag only
-        header = TCPHeader(seq_num=self.seq_num, ack_num=0,
+        self.seq_num += self.n
+        header = TCPHeader(seq_num=self.seq_num, ack_num=self.ack_num,
                             SYN=1, ACK=0, FIN=0)
         # header_tmp = ''.join(format(i, '08b')
         #                 for i in header.get_header())  # convert header to binary
@@ -35,22 +37,24 @@ class Connection():
         header.set_header(received)
         if header.ACK == 1 and header.SYN == 1:
             self.state = 'SYN-ACK'
-            self.recv_seq_num = header.seq_num
-            self.seq_num += 1
+            self.ack_num = header.seq_num+1
         else: 
             return False
 
-        header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1,
+        self.seq_num += self.n
+        header = TCPHeader(seq_num=self.seq_num, ack_num=self.ack_num,
                             SYN=0, ACK=1, FIN=0)
         self.socket.sendto(header.get_header(), self.dest)
         self.state = 'ACK'
-        self.seq_num += 1
         self.connected = True
         
         return True
 
     def accept_connection(self):
-        header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1,
+        print('Accepting Connection')
+        self.ack_num = self.header.seq_num+1
+        self.seq_num += self.n
+        header = TCPHeader(seq_num=self.seq_num, ack_num=self.ack_num,
                         SYN=1, ACK=1)
         self.socket.sendto(header.get_header(), self.dest)
         self.state = 'SYN-ACK'
@@ -62,9 +66,9 @@ class Connection():
         header.set_header(received)
         if header.ACK == 1:
             self.state = 'ACK'
-            self.recv_seq_num = header.seq_num
-            self.seq_num += 1
+            self.ack_num = header.seq_num + 1
             self.connected = True
+            print('Handshake complete')
             return True
         else: 
             return False
@@ -82,6 +86,9 @@ class Connection():
         # select a rdt scheme to use and implement
         # create header for each packet
         # send packets
+        print('Resetting sent packets')
+        self.packet_to_transmit = 0
+        self.packets = []
         print('Parsing message: ..')
         payloads = self.parse_msg(message)
         print('Done.')
@@ -90,8 +97,9 @@ class Connection():
             print('Confirmed connection')
             print('Starting while loop:')
             while len(self.packets)<len(payloads):
+                self.seq_num += self.n + len(payloads[self.packet_to_transmit])
                 header = TCPHeader(
-                    seq_num=self.seq_num, ack_num=self.recv_seq_num+self.n, ACK=1)
+                    seq_num=self.seq_num, ack_num=self.ack_num, ACK=1)
                 packet = header.get_header() + payloads[self.packet_to_transmit]
                 print('Sending packet')
                 self.socket.sendto(packet, self.dest)
@@ -102,13 +110,14 @@ class Connection():
                 print('Confirming ack')
                 header_bits = ''.join(format(i, '08b')
                                 for i in received[:32])  # convert header to binary
+                print(header_bits)
                 header = TCPHeader()
                 header.set_header(header_bits)
-                if header.ACK == 1 and header.ack_num == self.seq_num+self.n:
+                if header.ACK == 1 and header.ack_num == self.seq_num+1:
                     print('Confirmed')
                     self.packets.append(packet)
-                    self.seq_num += self.n
                     self.packet_to_transmit += 1
+                    self.ack_num = header.seq_num+1
 
     def receive(self, msg=None, buff_size=1024):
         # interpret message
@@ -118,36 +127,39 @@ class Connection():
             received = msg
         header_bits = ''.join(format(i, '08b')
                         for i in received[:32])  # convert header to binary
-        header = TCPHeader()
-        header.set_header(header_bits)
+        self.header = TCPHeader()
+        self.header.set_header(header_bits)
 
         print('Received: {}'.format(received[32:].decode()))
         
-        if header.FIN:
+        if self.header.FIN:
             self.closing = True
 
         if self.closing:
             self.close()
         elif self.connected:
-            if header.seq_num == self.seq_num+self.n:
-                self.received_msg.append(received[32:])
-                header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1,
+            print('Connected')
+            if self.header.seq_num > self.ack_num:
+                print('Message checks out')
+                self.received_msg.append(received[32:].decode())
+                if len(received)<64:
+                    self.message = ''.join(self.received_msg)
+                    self.received_msg = []
+                self.seq_num += self.n
+                self.ack_num = self.header.seq_num + 1
+                header = TCPHeader(seq_num=self.seq_num, ack_num=self.ack_num,
                             SYN=0, ACK=1, FIN=0)
                 self.socket.sendto(header.get_header(), self.dest)
-            if header.ACK == 1 and header.ack_num == self.seq_num+self.n:
-                self.recv_seq_num = header.seq_num
-                self.packet_to_transmit += 1
-                self.seq_num += self.n
-        elif header.SYN:
+        elif self.header.SYN:
             self.accept_connection()
+
+        print('Current seq_num: {}'.format(self.seq_num))
+        print('Current ack_num: {}'.format(self.ack_num))
 
 
     def disconnect(self):
-        header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+self.n, FIN=1)
-        # self.seq_num += 1
-        # header_tmp = ''.join(format(i, '08b')
-        #                 for i in header.get_header())  # convert header to binary
-        # print('sending: {}'.format(header_tmp))
+        self.seq_num += self.n
+        header = TCPHeader(seq_num=self.seq_num, ack_num=self.ack_num, FIN=1)
         self.socket.sendto(header.get_header(), self.dest)
         self.state = 'FIN'
 
@@ -159,16 +171,19 @@ class Connection():
         header.set_header(received)
         if header.ACK == 1 and header.FIN == 1:
             self.state = 'FIN-ACK'
-            self.recv_seq_num = header.seq_num
-            self.seq_num += 1
+            self.ack_num = header.seq_num+1
         
-        header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1,ACK=1)
+        self.seq_num += self.n
+        header = TCPHeader(seq_num=self.seq_num, ack_num=self.ack_num,ACK=1)
         self.socket.sendto(header.get_header(), self.dest)
         self.state = 'CLOSED'
         self.connected = False
 
     def close(self):
-        header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+1, ACK=1, FIN=1)
+        print('Received FIN, closing connection')
+        self.ack_num = self.header.seq_num+1
+        self.seq_num += self.n
+        header = TCPHeader(seq_num=self.seq_num, ack_num=self.ack_num, ACK=1, FIN=1)
         self.socket.sendto(header.get_header(), self.dest)
         self.state = 'FIN-ACK'
 
@@ -177,7 +192,13 @@ class Connection():
                         for i in received)  # convert header to binary
         header = TCPHeader()
         header.set_header(received)
-
+        print('Received message, confirming ack')
+        # print(received)
+        # conversion problem still exists
+        # TODO
+        # fix it
         if header.ACK:
+            self.ack_num = header.seq_num+1
             self.state = 'CLOSED'
             self.connected = False
+            print('Connection closed')

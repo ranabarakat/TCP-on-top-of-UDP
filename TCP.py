@@ -38,7 +38,7 @@ class TCPHeader():
         # byte_num = 32
         # print('byte_num: {}'.format(byte_num))
         # return bit_int.to_bytes(byte_num, 'big')
-        # print(bits)
+        print(bits)
         byts = ''.join([chr(int(bits[i:i+8],2)) for i in range(0, len(bits), 8)]).encode()
         # print('bytes: {}'.format(byts))
         return byts

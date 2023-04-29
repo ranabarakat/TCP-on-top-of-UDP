@@ -9,7 +9,8 @@ con = Connection(sock, (HOST, PORT))
 
 con.connect()
 print(con.state)
-con.send('abcde')
+con.send('message 1')
+con.send('message 2')
 con.disconnect()
 print(con.state)
 
