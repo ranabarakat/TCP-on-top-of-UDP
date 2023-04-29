@@ -7,25 +7,25 @@ HOST, PORT = "localhost", 9999
 
 class MyUDPHandler(socketserver.BaseRequestHandler):
     connections = []
-    current_connection = None
 
     def setup(self):
-        i = 0
+        self.current_connection = None
         for conn in MyUDPHandler.connections:
-            if conn.socket == self.request[1]:
-                MyUDPHandler.current_connection = conn
-                i+=1
-        if i == len(MyUDPHandler.connections):
+            if conn.client_address[0] == self.client_address[0] and conn.client_address[1] == self.client_address[1]:
+                self.current_connection = conn
+
+        if self.current_connection==None:
+            print('new connection')
             serv = ServerConnection(self.request[1],self.client_address)
             MyUDPHandler.connections.append(serv)
-            MyUDPHandler.current_connection = serv
+            self.current_connection = serv
 
         
         
 
     def handle(self):
         self.msg = self.request[0].strip()
-        MyUDPHandler.current_connection.receive(self.msg)
+        self.current_connection.receive(self.msg)
         # self.current_connection.handshake(self.header)
         # self.split_header_contents()
         # CHECK WHICH CONNECTION
@@ -65,6 +65,8 @@ class ServerConnection():
     #         return 3
         
     def handshake(self):
+        # print('in handshake SYN: {}, ACK: {}'.format(self.header.SYN, self.header.ACK))
+        # print('state before: {}'.format(self.state))
         if self.state == 'CLOSED':
             # received = self.socket.recv(1024)
             if self.header.SYN:
@@ -74,10 +76,13 @@ class ServerConnection():
                 self.state = 'SYN-ACK'
 
         elif self.state == 'SYN-ACK':
+            # print('attempting to end handshake')
             if self.header.ACK:
+                # print('handshake done')
                 self.state = 'CONNECTED'
                 self.seq_num += 1
                 self.connected = True
+        # print('state after: {}'.format(self.state))
 
 
     def send(self, message):
@@ -95,16 +100,21 @@ class ServerConnection():
         self.payload_bits = ''.join(format(i, '08b') for i in message[32:])
         self.header = TCPHeader()
         self.header.set_header(self.header_bits)
+        # print('received: {}'.format(self.header_bits))
+        # print('fin: '.format(self.header.FIN))
         self.recv_seq_num = self.header.seq_num
         # self.n = len(message[32:])
 
         if self.header.FIN:
             self.closing = True
+            # print('Closing is True')
+            # print('connected: {}'.format(self.connected))
 
-        if not self.connected :
+        if not self.connected:
             self.handshake()
 
         elif self.closing:
+            # print('going to close')
             self.close()
 
         else:
@@ -132,7 +142,7 @@ class ServerConnection():
 
 
 
-if __name__ == "__main__":
-    HOST, PORT = "localhost", 9999
-    with socketserver.UDPServer((HOST, PORT), MyUDPHandler) as server:
-        server.serve_forever()
+# if __name__ == "__main__":
+#     HOST, PORT = "localhost", 9999
+#     with socketserver.UDPServer((HOST, PORT), MyUDPHandler) as server:
+#         server.serve_forever()

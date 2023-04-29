@@ -38,6 +38,7 @@ class TCPHeader():
         # byte_num = 32
         # print('byte_num: {}'.format(byte_num))
         # return bit_int.to_bytes(byte_num, 'big')
+        # print(bits)
         byts = ''.join([chr(int(bits[i:i+8],2)) for i in range(0, len(bits), 8)]).encode()
         # print('bytes: {}'.format(byts))
         return byts
@@ -66,6 +67,9 @@ class TCPHeader():
         self.SYN = int(msg[192], 2)  # 1 bit
         self.ACK = int(msg[193], 2)  # 1 bit
         self.FIN = int(msg[194], 2)  # 1 bit
+        # print('in TCP SYN: {}'.format(self.SYN))
+        # print('in TCP ACK: {}'.format(self.ACK))
+        # print('in TCP FIN: {}'.format(self.FIN))
 
     def get_header(self):
         # return string representation of header:

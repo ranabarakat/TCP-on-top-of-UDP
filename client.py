@@ -8,7 +8,7 @@ HOST, PORT = "localhost", 9999
 data = 'hello world@1'
 
 # SOCK_DGRAM is the socket type to use for UDP sockets
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+# sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # As you can see, there is no connect() call; UDP has no connections.
 # Instead, data is directly sent to the recipient via sendto().
@@ -36,7 +36,8 @@ class ClientConnection():
         self.recv_seq_num = 0
         self.packet_to_transmit = 0  # current packet up for transmission
         self.packets = []
-        self.seq_num = random.randint(0,9999)
+        # self.seq_num = random.randint(0,9999)
+        self.seq_num = 5407
         self.n = 32  # each packet consists of 32-byte payload + 32-byte header
     # def create_header(self, message):
         # pass
@@ -51,13 +52,15 @@ class ClientConnection():
             header = TCPHeader(seq_num=self.seq_num, ack_num=0,
                                SYN=1, ACK=0, FIN=0)
             # self.seq_num += 1
-            # header_tmp = ''.join(format(i, '08b')
-            #              for i in header.get_header())  # convert header to binary
-            # print('sending: {}'.format(header_tmp))
+            header_tmp = ''.join(format(i, '08b')
+                         for i in header.get_header())  # convert header to binary
+            print('sending: {}'.format(header_tmp))
+            # print('seq: {}'.format(self.seq_num))
             self.socket.sendto(header.get_header(), self.dest)
             self.state = 'SYN'
 
         elif self.state == 'SYN':
+            # print('Waiting for SYN-ACK')
             received = self.socket.recv(1024)
             received = ''.join(format(i, '08b')
                          for i in received)  # convert header to binary
@@ -103,7 +106,9 @@ class ClientConnection():
     def receive(self):
         # interpret message
         if self.connected:
-            received = str(self.socket.recv(1024), "utf-8")
+            received = self.socket.recv(1024)
+            received = ''.join(format(i, '08b')
+                         for i in received)  # convert header to binary
             header = TCPHeader()
             header.set_header(received)
             if header.ACK == 1 and header.ack_num == self.seq_num+self.n:
@@ -119,11 +124,17 @@ class ClientConnection():
         if self.state == 'ACK':
             header = TCPHeader(seq_num=self.seq_num, ack_num=self.recv_seq_num+self.n, FIN=1)
             # self.seq_num += 1
+            header_tmp = ''.join(format(i, '08b')
+                         for i in header.get_header())  # convert header to binary
+            # print('sending: {}'.format(header_tmp))
             self.socket.sendto(header.get_header(), self.dest)
             self.state = 'FIN'
 
         elif self.state == 'FIN':
-            received = str(sock.recv(1024), "utf-8")
+            # print('Waiting for FIN-ACK')
+            received = self.socket.recv(1024)
+            received = ''.join(format(i, '08b')
+                         for i in received)  # convert header to binary
             header = TCPHeader()
             header.set_header(received)
             if header.ACK == 1 and header.FIN == 1:
