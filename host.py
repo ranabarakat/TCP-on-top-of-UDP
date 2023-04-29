@@ -20,6 +20,11 @@ class Connection():
         # pass
 
 
+    def bytes_to_bits(bytes):
+        print(len(bytes))
+        print(len(bytes.decode()))
+        bits = ''.join(['{0:08b}'.format(ord(i)) for i in bytes.decode()])
+        return bits
     def connect(self):
         # create a header with SYN flag only
         self.seq_num += self.n
@@ -33,8 +38,7 @@ class Connection():
 
         try:
             received = self.socket.recv(1024)
-            received = ''.join(format(i, '08b')
-                            for i in received)  # convert header to binary
+            received = Connection.bytes_to_bits(received)
         except:
             print('timed out')
         header = TCPHeader()
@@ -64,8 +68,7 @@ class Connection():
         self.state = 'SYN-ACK'
 
         received = self.socket.recv(1024)
-        received = ''.join(format(i, '08b')
-                        for i in received)  # convert header to binary
+        received = Connection.bytes_to_bits(received)
         header = TCPHeader()
         header.set_header(received)
         if header.ACK == 1:
@@ -112,8 +115,7 @@ class Connection():
                 received = self.socket.recv(1024)
                 print('Received message')
                 print('Confirming ack')
-                header_bits = ''.join(format(i, '08b')
-                                for i in received[:32])  # convert header to binary
+                header_bits = Connection.bytes_to_bits(received[:32])
                 print(header_bits)
                 header = TCPHeader()
                 header.set_header(header_bits)
@@ -129,8 +131,7 @@ class Connection():
             received = self.socket.recv(buff_size)
         else:
             received = msg
-        header_bits = ''.join(format(i, '08b')
-                        for i in received[:32])  # convert header to binary
+        header_bits = Connection.bytes_to_bits(received[:32])
         self.header = TCPHeader()
         self.header.set_header(header_bits)
 
@@ -169,8 +170,7 @@ class Connection():
 
         # print('Waiting for FIN-ACK')
         received = self.socket.recv(1024)
-        received = ''.join(format(i, '08b')
-                        for i in received)  # convert header to binary
+        received = Connection.bytes_to_bits(received)
         header = TCPHeader()
         header.set_header(received)
         if header.ACK == 1 and header.FIN == 1:
@@ -192,8 +192,7 @@ class Connection():
         self.state = 'FIN-ACK'
 
         received = self.socket.recv(1024)
-        received = ''.join(format(i, '08b')
-                        for i in received)  # convert header to binary
+        received = Connection.bytes_to_bits(received)
         header = TCPHeader()
         header.set_header(received)
         print('Received message, confirming ack')
