@@ -43,7 +43,11 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             print('Sending: \n{}'.format(response))
             self.request.sendall(response.encode())
         elif self.method == 'POST':
-            data = self.data.split("keep-alive\r\n")
+            data = self.data.decode().split("\r\n")[-1].split('=')
+            if len(data)<2:
+                data = ''
+            else:
+                data = data[1]
             self.client.post(self.path, data)
         else:
             print('Unknown method')
