@@ -223,7 +223,7 @@ class Connection():
                 # print(header_bits)
                 header = TCPHeader()
                 header.set_header(header_bits)
-                if header.ACK == 1:  # and header.ack_num == self.seq_num+1:
+                if header.ACK == 1 and header.ack_num == self.seq_num+1:
                     print('Confirmed')
                     self.packets.append(packet)
                     self.packet_to_transmit += 1

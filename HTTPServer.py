@@ -37,8 +37,8 @@ class HTTPServer:
         # print(self.data)
 
     def respond(self, request):
-        response = self.protocol + ' '
         self.parse_request(request)
+        response = self.protocol + ' '
         # print('here')
         if self.method == "GET":
             try:
