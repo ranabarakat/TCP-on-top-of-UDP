@@ -21,7 +21,7 @@ class HTTPClient:
         # self.sock.send(request.encode('utf-8'))
         self.conn.send(request)
         print("client request is sent")
-        _ = self.conn.receive()
+        # _ = self.conn.receive()
         response = self.conn.receive()
 
         print("client response is received")

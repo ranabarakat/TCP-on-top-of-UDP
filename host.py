@@ -149,7 +149,7 @@ class Connection():
                 print(header_bits)
                 header = TCPHeader()
                 header.set_header(header_bits)
-                if header.ACK == 1 : #and header.ack_num == self.seq_num+1:
+                if header.ACK == 1:  # and header.ack_num == self.seq_num+1:
                     print('Confirmed')
                     self.packets.append(packet)
                     self.packet_to_transmit += 1
@@ -190,7 +190,28 @@ class Connection():
                                    SYN=0, ACK=1, FIN=0)
                 print("ACKNOWLEDGING")
                 self.socket.sendto(header.get_header(), self.dest)
-                
+            while len(received) == 64 and msg == None:
+                received = self.socket.recv(buff_size)
+                header_bits = Connection.bytes_to_bits(received[:32])
+                self.header = TCPHeader()
+                self.header.set_header(header_bits)
+                print('Received: {}'.format(received[32:].decode()))
+                if self.connected:
+                    print('Connected')
+            if self.header.seq_num > self.ack_num:
+                print('Message checks out')
+                self.received_msg.append(received[32:].decode())
+                if len(received) < 64:
+                    self.message = ''.join(self.received_msg)
+                    self.received_msg = []
+                    # print(self.message)
+                self.seq_num += self.n
+                self.ack_num = self.header.seq_num + 1
+                header = TCPHeader(seq_num=self.seq_num, ack_num=self.ack_num,
+                                   SYN=0, ACK=1, FIN=0)
+                print("ACKNOWLEDGING")
+                self.socket.sendto(header.get_header(), self.dest)
+
                 # self.send(header.get_header())
             if len(received) < 64:
                 return self.message
