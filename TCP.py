@@ -83,8 +83,13 @@ class TCPHeader():
         # print('in TCP SYN: {}'.format(self.SYN))
         # print('in TCP ACK: {}'.format(self.ACK))
         # print('in TCP FIN: {}'.format(self.FIN))
+        
+    def get_header(self, msg=b''):
+        message = self.compute_header() + msg
+        return self.compute_header(self.compute_checksum(message))
+        
 
-    def get_header(self):
+    def compute_header(self, checkcsum=0):
         # return string representation of header:
         # concatall attributes
         # convert to binary string
@@ -106,5 +111,5 @@ class TCPHeader():
         return msg[256:]
 
     def compute_checksum(self, msg):
-        self.checksum = hashlib.md5(msg.encode()).digest()
+        self.checksum = int.from_bytes(hashlib.md5(msg).digest())
         return self.checksum

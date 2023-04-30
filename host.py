@@ -25,6 +25,17 @@ class Connection():
         # bits = ''.join(['{0:08b}'.format(ord(i)) for i in bytes.decode()])
         bits = ''.join([format(i, '08b') for i in bytes])
         return bits
+    
+    def confirm_checksum(self, msg):
+        header_bits = Connection.bytes_to_bits(msg[:32])
+        checksum = int(header_bits[64:192], 2)
+        header_bits = header_bits[:64] + '{0:0128b}'.format(0) + header_bits[192:]
+        message = TCPHeader.bits_to_bytes(header_bits) + msg[32:]
+        computed_checksum = int.from_bytes(hashlib.md5(message).digest())
+        # print('Message checksum: {}'.format(checksum))
+        # print('Computed checksum: {}'.format(computed_checksum))
+        return checksum == computed_checksum
+        
 
     def connect(self):
         # create a header with SYN flag only
@@ -54,17 +65,28 @@ class Connection():
         trials = 1
         flag = 0
         try:
-            received = self.socket.recv(1024)
-            received = Connection.bytes_to_bits(received)
+            received_orig = self.socket.recv(1024)
+            received = Connection.bytes_to_bits(received_orig)
             flag = 1
+            if self.confirm_checksum(received_orig):
+                print('Checksum confirmed')
+            else:
+                raise Exception('Checksum check failed')
         except:
-            print('timed out')
+            if not flag:
+                print('Timed out')
+            else:
+                flag = 0
 
         while not flag and trials <= self.connection_trials:
             try:
-                received = self.socket.recv(1024)
-                received = Connection.bytes_to_bits(received)
+                received_orig = self.socket.recv(1024)
+                received = Connection.bytes_to_bits(received_orig)
                 flag = 1
+                if self.confirm_checksum(received_orig):
+                    print('Checksum confirmed')
+                else:
+                    raise Exception('Checksum check failed')
                 header = TCPHeader()
                 header.set_header(received)
                 if header.ACK == 1 and header.SYN == 1:
@@ -73,7 +95,10 @@ class Connection():
                 else:
                     return False
             except:
-                print("timed out")
+                if not flag:
+                    print('Timed out')
+                else:
+                    flag = 0
                 trials += 1
 
         if not flag:
@@ -97,11 +122,57 @@ class Connection():
         self.socket.sendto(header.get_header(), self.dest)
         self.state = 'SYN-ACK'
 
-        received = self.socket.recv(1024)
-        received = Connection.bytes_to_bits(received)
-        header = TCPHeader()
-        header.set_header(received)
-        if header.ACK == 1:
+        trials = 1
+        flag = 0
+        print('bismilah')
+        try:
+            received_orig = self.socket.recv(1024)
+            received = Connection.bytes_to_bits(received_orig)
+            flag = 1
+            if self.confirm_checksum(received_orig):
+                print('Checksum confirmed')
+            else:
+                raise Exception('Checksum check failed')
+            header = TCPHeader()
+            header.set_header(received)
+            print('receiving ack')
+            if header.ACK == 1:
+                self.state = 'ACK'
+                print('alo')
+                self.ack_num = header.seq_num + 1
+                self.connected = True
+                print('Handshake complete')
+        except:
+            if not flag:
+                print('Timed out')
+            else:
+                print('Checksum check failed')
+                flag = 0
+        while not flag and trials <= self.connection_trials:
+            try:
+                received_orig = self.socket.recv(1024)
+                received = Connection.bytes_to_bits(received_orig)
+                flag = 1
+                if self.confirm_checksum(received_orig):
+                    print('Checksum confirmed')
+                else:
+                    raise Exception('Checksum check failed')
+                header = TCPHeader()
+                header.set_header(received)
+                print('receiving ack')
+                if header.ACK == 1:
+                    self.state = 'ACK'
+                    print('alo')
+                    self.ack_num = header.seq_num + 1
+                    self.connected = True
+                    print('Handshake complete')
+            except:
+                if not flag:
+                    print('Timed out')
+                else:
+                    flag = 0
+                    trials += 1
+        if flag:       
             self.state = 'ACK'
             self.ack_num = header.seq_num + 1
             self.connected = True
@@ -141,7 +212,7 @@ class Connection():
                 header = TCPHeader(
                     seq_num=self.seq_num, ack_num=self.ack_num, ACK=1, length=self.msg_len)
                 # print(len(header.get_header()))
-                packet = header.get_header() + \
+                packet = header.get_header(payloads[self.packet_to_transmit]) + \
                     payloads[self.packet_to_transmit]
                 print('Sending packet')
                 # print(f"message=== {packet}")
@@ -198,7 +269,10 @@ class Connection():
             self.received = msg
 
             # print(f"HELL {len(self.received[32:].decode())}")
-
+        if self.confirm_checksum(self.received):
+            print('Checksum confirmed')
+        else:
+            print('Checksum check failed')
         header_bits = Connection.bytes_to_bits(self.received[:32])
         self.header = TCPHeader()
         self.header.set_header(header_bits)
@@ -217,6 +291,10 @@ class Connection():
             done = self.parse()
             while not done:
                 self.received = self.socket.recv(buff_size)
+                if self.confirm_checksum(self.received):
+                    print('Checksum confirmed')
+                else:
+                    print('Checksum check failed')
                 header_bits = Connection.bytes_to_bits(self.received[:32])
                 self.header = TCPHeader()
                 self.header.set_header(header_bits)
@@ -245,6 +323,10 @@ class Connection():
 
         # print('Waiting for FIN-ACK')
         received = self.socket.recv(1024)
+        if self.confirm_checksum(received):
+            print('Checksum confirmed')
+        else:
+            print('Checksum check failed')
         received = Connection.bytes_to_bits(received)
         header = TCPHeader()
         header.set_header(received)
@@ -268,6 +350,10 @@ class Connection():
         self.state = 'FIN-ACK'
 
         received = self.socket.recv(1024)
+        if self.confirm_checksum(received):
+            print('Checksum confirmed')
+        else:
+            print('Checksum check failed')
         received = Connection.bytes_to_bits(received)
         header = TCPHeader()
         header.set_header(received)
