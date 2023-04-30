@@ -18,7 +18,7 @@ class Connection():
         self.seq_num = 0
         self.ack_num = 1
         self.n = 32  # each packet consists of 32-byte payload + 32-byte header
-        self.connection_trials = 5
+        self.connection_trials = 3
 
     def bytes_to_bits(bytes):
         # print(len(bytes))
