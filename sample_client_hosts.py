@@ -19,7 +19,7 @@ if __name__ == "__main__":
         response = client1.get(path)
         # print(f" FINAL RESPONSE: {response}")
     elif method == 'POST':
-        data = sys.argv[3]
+        data = ' '.join(sys.argv[3:])
         response = client1.post(path, data)
     print(f"RESPONSE: {response}")
 

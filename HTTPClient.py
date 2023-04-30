@@ -20,7 +20,8 @@ class HTTPClient:
         #     request += data
         # self.sock.send(request.encode('utf-8'))
         # print(f"FINAL: {request}")
-        self.conn.send(request)
+        if not self.conn.send(request):
+            return 'Timed out'
         print("client request is sent")
         # _ = self.conn.receive()
         response = self.conn.receive()

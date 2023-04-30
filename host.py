@@ -261,7 +261,39 @@ class Connection():
         self.message = ''
         # interpret message
         if msg == None:
-            self.received = self.socket.recv(buff_size)
+            trials = 1
+            flag = 0
+            try:
+                self.received = self.socket.recv(buff_size)
+                flag = 1
+                if self.confirm_checksum(self.received):
+                    print('Checksum confirmed')
+                else:
+                    raise Exception('Checksum check failed')
+                
+            except:
+                if not flag:
+                    print('Timed out')
+                else:
+                    print('Checksum check failed')
+                    flag = 0
+            while not flag and trials <= self.connection_trials:
+                try:
+                    self.received = self.socket.recv(buff_size)
+                    flag = 1
+                    if self.confirm_checksum(self.received):
+                        print('Checksum confirmed')
+                    else:
+                        raise Exception('Checksum check failed')
+                    
+                except:
+                    if not flag:
+                        print('Timed out')
+                    else:
+                        flag = 0
+                        trials += 1
+            if not flag:
+                return False
         else:
             self.received = msg
 
@@ -287,7 +319,37 @@ class Connection():
             print('Connected')
             done = self.parse()
             while not done:
-                self.received = self.socket.recv(buff_size)
+                trials = 1
+                flag = 0
+                try:
+                    self.received = self.socket.recv(buff_size)
+                    flag = 1
+                    if self.confirm_checksum(self.received):
+                        print('Checksum confirmed')
+                    else:
+                        raise Exception('Checksum check failed')
+                except:
+                    if not flag:
+                        print('Timed out')
+                    else:
+                        print('Checksum check failed')
+                        flag = 0
+                while not flag and trials <= self.connection_trials:
+                    try:
+                        self.received = self.socket.recv(buff_size)
+                        flag = 1
+                        if self.confirm_checksum(self.received):
+                            print('Checksum confirmed')
+                        else:
+                            raise Exception('Checksum check failed')
+                    except:
+                        if not flag:
+                            print('Timed out')
+                        else:
+                            flag = 0
+                            trials += 1
+                if not flag:
+                    return False
                 if self.confirm_checksum(self.received):
                     print('Checksum confirmed')
                 else:
