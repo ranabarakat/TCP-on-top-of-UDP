@@ -48,8 +48,12 @@ class HTTPServer:
 
             if self.data == None:
                 self.data = ''
+            if os.path.splitext(self.url)[1]=='.html':
+                self.content_type = "Content-Type: text/html\r\n\r\n"
+            else:
+                self.content_type = "Content-Type: text/plain\r\n\r\n"
             response += self.status_code + HTTPServer.CRLF + \
-                "Content-Type: text/plain\r\n\r\n"+self.data
+                    self.content_type+self.data
             # print(response)
         elif self.method == "POST":
             if os.path.isfile(self.url):
