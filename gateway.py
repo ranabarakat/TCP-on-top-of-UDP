@@ -28,6 +28,10 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         self.data = self.request.recv(1024).strip()
         split = self.data.decode().split('\\r\\n')
         splitsplit = split[0].split()
+        if len(splitsplit)==0:
+            print('Unknown format: {}'.format(self.data))
+            print('Ignoring')
+            return 
         self.method = splitsplit[0]
         self.path = splitsplit[1]
         print("{}, {} wrote:".format(
