@@ -30,7 +30,7 @@ class MyUDPHandler(socketserver.BaseRequestHandler):
         if request is not None:
             print("server received client request")
             response = self.http_server.respond(request)
-            # print(response)
+            print(response)
 
             self.current_connection.send(response)
             print("server sent client response")

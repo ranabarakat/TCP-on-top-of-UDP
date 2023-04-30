@@ -52,15 +52,19 @@ class HTTPServer:
         elif self.method == "POST":
             if os.path.isfile(self.url):
                 self.status_code = "200 OK"
+                print(f" HEREEEE{self.data}")
             else:
                 self.status_code = "201 CREATED"
 
             with open(self.url, "a+") as f:
                 f.write(self.data)
-                self.data = f.read()
+                f.seek(0)
+                self.data_to_send = f.read()
+                assert self.data_to_send.endswith(self.data)
+            print(f" HEREEEE2{self.data_to_send}")
 
             response += self.status_code + HTTPServer.CRLF + \
-                "Content-Type: text/plain\r\n\r\n"+self.data
+                "Content-Type: text/plain\r\n\r\n"+self.data_to_send
         else:
             response += "400 Bad Request\r\nContent-Type: text/plain\r\n\r\nInvalid Request!"
             # print(response)

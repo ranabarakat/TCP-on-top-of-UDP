@@ -20,7 +20,8 @@ if __name__ == "__main__":
         print(f" FINAL RESPONSE: {response}")
     elif method == 'POST':
         data = sys.argv[3]
-        client1.post(path, data)
+        response = client1.post(path, data)
+        print(f" FINAL RESPONSE: {response}")
 
 
 # con.connect()
