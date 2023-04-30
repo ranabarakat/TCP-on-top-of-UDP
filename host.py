@@ -156,19 +156,38 @@ class Connection():
                     self.ack_num = header.seq_num+1
                     # EDITED LINE
                     # self.seq_num += self.n
+                else:
+                    self.seq_num -= self.n + len(payloads[self.packet_to_transmit])
 
+    def parse(self):
+        ret = False
+        if self.header.seq_num > self.ack_num:
+            print('Message checks out')
+            self.received_msg.append(self.received[32:].decode())
+            if len(self.received) < 64:
+                self.message = ''.join(self.received_msg)
+                self.received_msg = []
+                ret = True
+                # print(self.message)
+            self.seq_num += self.n
+            self.ack_num = self.header.seq_num + 1
+            header = TCPHeader(seq_num=self.seq_num, ack_num=self.ack_num,
+                                SYN=0, ACK=1, FIN=0)
+            print("ACKNOWLEDGING")
+            self.socket.sendto(header.get_header(), self.dest)
+            return ret
     def receive(self, msg=None, buff_size=1024):
         self.message = ''
         # interpret message
         if msg == None:
-            received = self.socket.recv(buff_size)
+            self.received = self.socket.recv(buff_size)
         else:
-            received = msg
-        header_bits = Connection.bytes_to_bits(received[:32])
+            self.received = msg
+        header_bits = Connection.bytes_to_bits(self.received[:32])
         self.header = TCPHeader()
         self.header.set_header(header_bits)
 
-        print('Received: {}'.format(received[32:].decode()))
+        print('Received: {}'.format(self.received[32:].decode()))
 
         if self.header.FIN:
             self.closing = True
@@ -177,44 +196,20 @@ class Connection():
             self.close()
         elif self.connected:
             print('Connected')
-            if self.header.seq_num > self.ack_num:
-                print('Message checks out')
-                self.received_msg.append(received[32:].decode())
-                if len(received) < 64:
-                    self.message = ''.join(self.received_msg)
-                    self.received_msg = []
-                    # print(self.message)
-                self.seq_num += self.n
-                self.ack_num = self.header.seq_num + 1
-                header = TCPHeader(seq_num=self.seq_num, ack_num=self.ack_num,
-                                   SYN=0, ACK=1, FIN=0)
-                print("ACKNOWLEDGING")
-                self.socket.sendto(header.get_header(), self.dest)
-            while len(received) == 64 and msg == None:
-                received = self.socket.recv(buff_size)
-                header_bits = Connection.bytes_to_bits(received[:32])
+            done = self.parse()
+            while not done:
+                self.received = self.socket.recv(buff_size)
+                header_bits = Connection.bytes_to_bits(self.received[:32])
                 self.header = TCPHeader()
                 self.header.set_header(header_bits)
-                print('Received: {}'.format(received[32:].decode()))
+                print('Received: {}'.format(self.received[32:].decode()))
                 if self.connected:
                     print('Connected')
-            if self.header.seq_num > self.ack_num:
-                print('Message checks out')
-                self.received_msg.append(received[32:].decode())
-                if len(received) < 64:
-                    self.message = ''.join(self.received_msg)
-                    self.received_msg = []
-                    # print(self.message)
-                self.seq_num += self.n
-                self.ack_num = self.header.seq_num + 1
-                header = TCPHeader(seq_num=self.seq_num, ack_num=self.ack_num,
-                                   SYN=0, ACK=1, FIN=0)
-                print("ACKNOWLEDGING")
-                self.socket.sendto(header.get_header(), self.dest)
+                    done = self.parse()
 
                 # self.send(header.get_header())
-            if len(received) < 64:
-                return self.message
+            
+            return self.message
 
         elif self.header.SYN:
             self.accept_connection()
