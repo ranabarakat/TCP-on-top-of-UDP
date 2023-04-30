@@ -26,12 +26,15 @@ class HTTPServer:
 
     def parse_request(self, request):
         # request = str(request)
-        request_parts = request.split('\r\n')
+        request_parts = request.split('\\r\\n')
+
         part1 = request_parts[0].split(' ')
+        # print(part1)
         self.method = part1[0]
         self.url = self.directory + "/" + part1[1]
         self.protocol = part1[2] if len(part1) > 2 else 'HTTP/1.1'
         self.data = " " + request_parts[1] if len(request_parts) > 1 else None
+        # print(self.data)
 
     def respond(self, request):
         response = self.protocol + ' '
@@ -48,17 +51,16 @@ class HTTPServer:
 
             if self.data == None:
                 self.data = ''
-            if os.path.splitext(self.url)[1]=='.html':
+            if os.path.splitext(self.url)[1] == '.html':
                 self.content_type = "Content-Type: text/html\r\n\r\n"
             else:
                 self.content_type = "Content-Type: text/plain\r\n\r\n"
             response += self.status_code + HTTPServer.CRLF + \
-                    self.content_type+self.data
-            # print(response)
+                self.content_type+self.data
         elif self.method == "POST":
             if os.path.isfile(self.url):
                 self.status_code = "200 OK"
-                print(f" HEREEEE{self.data}")
+                # print(f" HEREEEE{self.data}")
             else:
                 self.status_code = "201 CREATED"
 
@@ -67,7 +69,7 @@ class HTTPServer:
                 f.seek(0)
                 self.data_to_send = f.read()
                 assert self.data_to_send.endswith(self.data)
-            print(f" HEREEEE2{self.data_to_send}")
+            # print(f" HEREEEE2{self.data_to_send}")
 
             response += self.status_code + HTTPServer.CRLF + \
                 "Content-Type: text/plain\r\n\r\n"+self.data_to_send
