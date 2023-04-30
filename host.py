@@ -16,8 +16,7 @@ class Connection():
         self.seq_num = 0
         self.ack_num = 1
         self.n = 32  # each packet consists of 32-byte payload + 32-byte header
-    # def create_header(self, message):
-        # pass
+        self.connection_trials = 5
 
 
     def bytes_to_bits(bytes):
@@ -36,17 +35,47 @@ class Connection():
         self.socket.sendto(header.get_header(), self.dest)
         self.state = 'SYN'
 
+        # try:
+        #     received = self.socket.recv(1024)
+        #     received = Connection.bytes_to_bits(received)
+        # except:
+        #     print('timed out')
+        # header = TCPHeader()
+        # header.set_header(received)
+        # if header.ACK == 1 and header.SYN == 1:
+        #     self.state = 'SYN-ACK'
+        #     self.ack_num = header.seq_num+1
+        # else: 
+        #     return False
+        
+        trials = 1
+        flag = 0
         try:
             received = self.socket.recv(1024)
-            received = Connection.bytes_to_bits(received)
+            received = ''.join(format(i, '08b')
+                               for i in received)  # convert header to binary
+            flag = 1
         except:
             print('timed out')
-        header = TCPHeader()
-        header.set_header(received)
-        if header.ACK == 1 and header.SYN == 1:
-            self.state = 'SYN-ACK'
-            self.ack_num = header.seq_num+1
-        else: 
+
+        while not flag and trials <= self.connection_trials:
+            try:
+                received = self.socket.recv(1024)
+                received = ''.join(format(i, '08b')
+                                   for i in received)  # convert header to binary
+                flag = 1
+                header = TCPHeader()
+                header.set_header(received)
+                if header.ACK == 1 and header.SYN == 1:
+                    self.state = 'SYN-ACK'
+                    self.ack_num = header.seq_num+1
+                else:
+                    return False
+            except:
+                print("timed out")
+                trials += 1
+
+        if not flag:
             return False
 
         self.seq_num += self.n
