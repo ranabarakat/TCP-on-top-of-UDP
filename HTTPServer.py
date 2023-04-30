@@ -46,6 +46,8 @@ class HTTPServer:
             except:
                 self.status_code = "404 NOT FOUND"
 
+            if self.data == None:
+                self.data = ''
             response += self.status_code + HTTPServer.CRLF + \
                 "Content-Type: text/plain\r\n\r\n"+self.data
             # print(response)
