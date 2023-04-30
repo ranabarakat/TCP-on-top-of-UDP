@@ -5,6 +5,8 @@ from HTTPClient import *
 
 
 SERVER = ('localhost', 9999)
+
+
 class MyTCPHandler(socketserver.BaseRequestHandler):
     """
     The request handler class for our server.
@@ -13,7 +15,9 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
     override the handle() method to implement communication to the
     client.
     """
+
     def setup(self):
+        # Connection between gateway and UDP server
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         self.con = Connection(sock, SERVER)
@@ -22,10 +26,12 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
     def handle(self):
         # self.request is the TCP socket connected to the client
         self.data = self.request.recv(1024).strip()
-        split = self.data.decode().split()
-        self.method = split[0]
-        self.path = split[1]
-        print("{}, {} wrote:".format(self.client_address[0], self.client_address[1]))
+        split = self.data.decode().split('\\r\\n')
+        splitsplit = split[0].split()
+        self.method = splitsplit[0]
+        self.path = splitsplit[1]
+        print("{}, {} wrote:".format(
+            self.client_address[0], self.client_address[1]))
         print(self.data)
         print('Method: {}'.format(self.method))
         if self.method == 'GET':
@@ -33,9 +39,11 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             print('Sending: \n{}'.format(response))
             self.request.sendall(response.encode())
         elif self.method == 'POST':
-            self.client.post(self.path, '')
+            data = self.data.split("keep-alive\r\n")
+            self.client.post(self.path, data)
         else:
             print('Unknown method')
+
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 9900
