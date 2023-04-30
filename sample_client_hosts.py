@@ -17,11 +17,11 @@ if __name__ == "__main__":
     client1 = HTTPClient(con)
     if method == 'GET':
         response = client1.get(path)
-        print(f" FINAL RESPONSE: {response}")
+        # print(f" FINAL RESPONSE: {response}")
     elif method == 'POST':
         data = sys.argv[3]
         response = client1.post(path, data)
-        print(f" FINAL RESPONSE: {response}")
+    print(f"RESPONSE: {response}")
 
 
 # con.connect()

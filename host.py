@@ -122,11 +122,14 @@ class Connection():
         # select a rdt scheme to use and implement
         # create header for each packet
         # send packets
+        self.msg_len = len(message)
+        # print(f"MESSAGE LENGTH: {self.msg_len}")
         print('Resetting sent packets')
         self.packet_to_transmit = 0
         self.packets = []
         print('Parsing message: ..')
         payloads = self.parse_msg(message)
+        # print(payloads[0])
         print('Done.')
 
         if self.connected:
@@ -134,11 +137,14 @@ class Connection():
             print('Starting while loop:')
             while len(self.packets) < len(payloads):
                 self.seq_num += self.n + len(payloads[self.packet_to_transmit])
+                # print(f"PAYLOAD: {payloads[self.packet_to_transmit]} ")
                 header = TCPHeader(
-                    seq_num=self.seq_num, ack_num=self.ack_num, ACK=1)
+                    seq_num=self.seq_num, ack_num=self.ack_num, ACK=1, length=self.msg_len)
+                # print(len(header.get_header()))
                 packet = header.get_header() + \
                     payloads[self.packet_to_transmit]
                 print('Sending packet')
+                # print(f"message=== {packet}")
                 self.socket.sendto(packet, self.dest)
                 print('Done.')
                 print('Waiting for ack')
@@ -146,7 +152,7 @@ class Connection():
                 print('Received message')
                 print('Confirming ack')
                 header_bits = Connection.bytes_to_bits(received[:32])
-                print(header_bits)
+                # print(header_bits)
                 header = TCPHeader()
                 header.set_header(header_bits)
                 if header.ACK == 1:  # and header.ack_num == self.seq_num+1:
@@ -157,25 +163,32 @@ class Connection():
                     # EDITED LINE
                     # self.seq_num += self.n
                 else:
-                    self.seq_num -= self.n + len(payloads[self.packet_to_transmit])
+                    self.seq_num -= self.n + \
+                        len(payloads[self.packet_to_transmit])
 
     def parse(self):
         ret = False
         if self.header.seq_num > self.ack_num:
             print('Message checks out')
             self.received_msg.append(self.received[32:].decode())
-            if len(self.received) < 64:
+
+            self.received_msgg = ''.join(i for i in self.received_msg)
+            # print(len(self.received_msgg))
+            # print(self.received_msg)
+            # print(self.recv_msg_len)
+
+            if len(self.received_msgg) == self.recv_msg_len:
                 self.message = ''.join(self.received_msg)
                 self.received_msg = []
                 ret = True
-                # print(self.message)
             self.seq_num += self.n
             self.ack_num = self.header.seq_num + 1
             header = TCPHeader(seq_num=self.seq_num, ack_num=self.ack_num,
-                                SYN=0, ACK=1, FIN=0)
+                               SYN=0, ACK=1, FIN=0)
             print("ACKNOWLEDGING")
             self.socket.sendto(header.get_header(), self.dest)
             return ret
+
     def receive(self, msg=None, buff_size=1024):
         self.message = ''
         # interpret message
@@ -183,11 +196,16 @@ class Connection():
             self.received = self.socket.recv(buff_size)
         else:
             self.received = msg
+
+            # print(f"HELL {len(self.received[32:].decode())}")
+
         header_bits = Connection.bytes_to_bits(self.received[:32])
         self.header = TCPHeader()
         self.header.set_header(header_bits)
+        self.recv_msg_len = self.header.msg_len
+        # print(f"NOOOO {self.recv_msg_len}")
 
-        print('Received: {}'.format(self.received[32:].decode()))
+        # print('Received: {}'.format(self.received[32:].decode()))
 
         if self.header.FIN:
             self.closing = True
@@ -202,13 +220,15 @@ class Connection():
                 header_bits = Connection.bytes_to_bits(self.received[:32])
                 self.header = TCPHeader()
                 self.header.set_header(header_bits)
-                print('Received: {}'.format(self.received[32:].decode()))
+                # self.recv_msg_len = self.header.msg_len
+
+                # print('Received: {}'.format(self.received[32:].decode()))
                 if self.connected:
-                    print('Connected')
+                    # print('Connected')
                     done = self.parse()
 
                 # self.send(header.get_header())
-            
+
             return self.message
 
         elif self.header.SYN:

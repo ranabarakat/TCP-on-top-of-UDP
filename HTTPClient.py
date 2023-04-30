@@ -10,15 +10,16 @@ class HTTPClient:
 
     def request(self, method, path, data=None):
         if data:
-            request = method + " " + path + " HTTP/1.1\r\n" + data
+            request = method + " " + path + " HTTP/1.1\\r\\n" + data
         else:
-            request = method + " " + path + " HTTP/1.1\r\n"
+            request = method + " " + path + " HTTP/1.1\\r\\n"
         # if data:
         #     request += "Content-Length: {}\r\n".format(len(data))
         # request += "\r\n"
         # if data:
         #     request += data
         # self.sock.send(request.encode('utf-8'))
+        # print(f"FINAL: {request}")
         self.conn.send(request)
         print("client request is sent")
         # _ = self.conn.receive()
